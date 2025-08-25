@@ -1,0 +1,20 @@
+name: Deploy Main Site
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Upload Main Site
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website 
+          publish_branch: gh-pages
+          keep_files: true 
+          enable_jekyll: false
