@@ -3,6 +3,9 @@ name: Deploy Main Site
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
