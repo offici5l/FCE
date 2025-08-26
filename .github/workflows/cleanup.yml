@@ -1,4 +1,4 @@
-name: Cleanup old files
+name: Cleanup old releases
 
 on:
   schedule:
@@ -11,20 +11,39 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
+      - name: Delete old releases
+        uses: actions/github-script@v7
         with:
-          ref: main
+          script: |
+            const daysToKeep = 7;
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - daysToKeep);
 
-      - name: Delete old folders in docs (older than 7 days)
-        run: |
-          cd docs
-          find . -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
 
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs
-          git commit -m "Cleanup old folders older than 7 days" || echo "No changes"
-          git push
+            for (const rel of releases) {
+              const created = new Date(rel.created_at);
+              if (created < cutoff) {
+                console.log(`🗑️ Deleting release: ${rel.tag_name} (created ${rel.created_at})`);
+
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: rel.id
+                });
+
+                try {
+                  await github.rest.git.deleteRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `tags/${rel.tag_name}`
+                  });
+                } catch (err) {
+                  console.log(`⚠️ Failed to delete tag ${rel.tag_name}: ${err.message}`);
+                }
+              }
+            }
