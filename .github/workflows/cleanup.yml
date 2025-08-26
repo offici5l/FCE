@@ -11,19 +11,20 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout gh-pages
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: gh-pages
+          ref: main
 
-      - name: Delete old folders (older than 7 days)
+      - name: Delete old folders in docs (older than 7 days)
         run: |
-          find . -type d -maxdepth 1 -mtime +7 -exec rm -rf {} \;
+          cd docs
+          find . -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
 
       - name: Commit and push changes
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add -A
-          git commit -m "Cleanup old files" || echo "No changes"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Cleanup old folders older than 7 days" || echo "No changes"
           git push
