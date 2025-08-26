@@ -99,7 +99,7 @@
     }
 
     const uniqueId = createUniqueId(url, file);
-    const outputUrl = `https://offici5l.github.io/FCE/${encodeURIComponent(uniqueId)}/${encodeURIComponent(file)}.zip`;
+    const outputUrl = `https://github.com/offici5l/FCE/releases/download/${encodeURIComponent(uniqueId)}/${encodeURIComponent(file)}.zip`;
 
     startBtn.disabled = true;
     setBadge('Working…', 'warn');
