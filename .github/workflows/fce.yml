@@ -18,10 +18,10 @@ permissions:
 
 jobs:
   fce:
-    name: ${{ github.event.inputs.unique_id }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/fce:latest
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -29,15 +29,12 @@ jobs:
       - name: Run FCE
         run: /entrypoint.sh "${{ github.event.inputs.url }}" "${{ github.event.inputs.file_to_extract }}"
 
-      - name: Copy output to docs
-        run: |
-          mkdir -p docs/${{ github.event.inputs.unique_id }}
-          cp -r /workspace/output/* docs/${{ github.event.inputs.unique_id }}/
-
-      - name: Commit and Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs
-          git commit -m "Add output for ${{ github.event.inputs.unique_id }}"
-          git push
+      - name: Upload to docs/
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: /workspace/output
+          destination_dir: docs/${{ github.event.inputs.unique_id }}
+          publish_branch: main
+          keep_files: true
+          enable_jekyll: false
