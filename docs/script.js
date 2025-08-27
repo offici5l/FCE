@@ -109,6 +109,7 @@
       activeStepId = 'precheck';
       makeStep(activeStepId, 'Checking for pre-existing file');
       setStepAs(activeStepId, 'in_progress');
+      setStepStatus(activeStepId, `Checking: ${outputUrl}`);
       const checkRes = await callProxy({ action: 'check_output', output_url: outputUrl });
       if (checkRes.status === 200) {
           setStepAs(activeStepId, 'completed', 'success');
