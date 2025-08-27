@@ -17,7 +17,8 @@ permissions:
   contents: write
 
 jobs:
-  ${{ github.event.inputs.unique_id }}:
+  fce:
+    name: ${{ github.event.inputs.unique_id }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/${{ github.repository_owner }}/fce:latest
