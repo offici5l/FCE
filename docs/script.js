@@ -61,7 +61,7 @@
   function createUniqueId(url, file){
     try{
       const b = url.split('/').pop() || '';
-      const nameOnly = (b.split('?')[0]||'').split('.').slice(0,-1).join('.') || b.split('?')[0] || 'file';
+      const nameOnly = (b.split('?')[0]||'').split('.')[0] || b.split('?')[0] || 'file';
       return `${file}_${nameOnly}`;
     }catch{ return `${file}_${Date.now()}` }
   }
