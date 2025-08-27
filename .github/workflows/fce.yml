@@ -25,25 +25,17 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
-      - name: Run FCE
+ 
+      - name: Download and Extract
         run: /entrypoint.sh "${{ github.event.inputs.url }}" "${{ github.event.inputs.file_to_extract }}"
 
-      - name: Create Release (if not exists)
-        id: create_release
+      - name: Upload
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.unique_id }}
           name: "FCE Output - ${{ github.event.inputs.unique_id }}"
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Output as Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.unique_id }}
-          files: /workspace/output/* 
+          files: /workspace/output/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
