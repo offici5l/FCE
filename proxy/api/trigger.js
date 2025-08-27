@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { exec } from "child_process";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -79,14 +80,16 @@ export default async function handler(req, res) {
         break;
 
       case "check_output":
-        if (!output_url) return res.status(400).json({ ok: false, error: "Missing 'output_url'" });
-        const headResponse = await fetch(output_url, { 
-            method: "HEAD",
-            headers: { 
-                Authorization: `Bearer ${GITHUB_TOKEN}`
-            }
+        if (!output_url) {
+          return res.status(400).json({ ok: false, error: "Missing 'output_url'" });
+        }
+        const statusCode = await new Promise((resolve) => {
+          const command = `curl -s -o /dev/null -w "%{http_code}" -IL "${output_url}"`;
+          exec(command, (error, stdout) => {
+            resolve(parseInt(stdout.trim(), 10) || 0);
+          });
         });
-        return res.status(200).json({ status: headResponse.status });
+        return res.status(200).json({ status: statusCode });
 
       default:
         return res.status(400).json({ ok: false, error: "Invalid action" });
