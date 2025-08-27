@@ -1,10 +1,13 @@
 #!/bin/bash
 
 URL_INPUT="https://ultimateota.d.miui.com/OS2.0.201.0.VNTEUXM/moon_eea_global-ota_full-OS2.0.201.0.VNTEUXM-user-15.0-5e31983d6e.zip?t=1755293681&s=219e32da0eb22c71926089713aefe248"
-FILE_INPUT="boot"
+FILE_INPUT="vendor_boot"
 
-UNIQUE_ID="${FILE_INPUT}_$(basename "$URL_INPUT" | cut -d'?' -f1 | cut -d'.' -f1)"
-OUTPUT_URL="https://offici5l.github.io/FCE/$UNIQUE_ID/${FILE_INPUT}.zip"
+FILENAME=$(basename "$URL_INPUT" | cut -d'?' -f1 | sed 's/\.zip$//')
+
+UNIQUE_ID="${FILE_INPUT}_$FILENAME"
+OUTPUT_URL="https://github.com/offici5l/FCE/releases/download/$UNIQUE_ID/${FILE_INPUT}.zip"
+
 PROXY_URL="https://fce-proxy.vercel.app/api/trigger"
 
 # Function to call the proxy
@@ -14,13 +17,14 @@ call_proxy() {
 
 # Pre-check if output already exists
 echo "🔎 Checking for existing output..."
-RESPONSE=$(call_proxy "{\"action\": \"check_output\", \"output_url\": \"$OUTPUT_URL\"}")
-STATUS=$(echo "$RESPONSE" | jq -r '.status')
-if [ "$STATUS" -eq 200 ]; then
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -IL "$OUTPUT_URL")
+
+if [ "$HTTP_STATUS" -eq 200 ]; then
     echo "✅ Output already exists and is available here:"
     echo "  $OUTPUT_URL"
     exit 0
 fi
+
 echo "ℹ️ No existing output found. Starting new workflow..."
 
 # Trigger workflow
@@ -141,23 +145,26 @@ if [ "$CONCLUSION" != "success" ]; then
     exit 1
 fi
 
-echo "Checking if output is available..."
+echo "⏳ Checking if output is available..."
 delay=10
 for i in {1..30}; do
-    RESPONSE=$(call_proxy "{\"action\": \"check_output\", \"output_url\": \"$OUTPUT_URL\"}")
-    STATUS=$(echo "$RESPONSE" | jq -r '.status')
-    if [ "$STATUS" -eq 200 ]; then
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -IL "$OUTPUT_URL")
+
+    if [ "$HTTP_STATUS" -eq 200 ]; then
+        echo ""
         echo "✅ Output is ready and will be available for 7 days:"
         echo "  $OUTPUT_URL"
         exit 0
     fi
+
     echo -ne "\r... waiting for output (attempt $i, delay ${delay}s)"
     sleep $delay
+
     if [ $delay -lt 15 ]; then
         delay=$((delay+1))
     fi
 done
-echo
 
-echo "⚠️ Output not found yet. Try later:"
-echo "  $OUTPUT_URL"
+echo ""
+echo "❌ Output was not ready after waiting. Try again later."
+exit 1
