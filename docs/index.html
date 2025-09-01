@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Firmware Content Extractor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="app">
+      <header>
+        <div class="logo" aria-hidden="true">⚙️</div>
+        <h1>Firmware Content Extractor</h1>
+      </header>
+      </header>
+      <section class="card">
+        <div class="panel">
+          <form id="fceForm">
+            <div class="row">
+              <div>
+                <label for="url">ROM URL</label>
+                <input id="url" name="url" type="url" required placeholder="https://example.com/rom.zip" />
+              </div>
+              <div>
+                <label for="file">Extract:</label>
+                <select id="file" name="file">
+                  <option value="boot">boot</option>
+                  <option value="init_boot">init_boot</option>
+                  <option value="vendor_boot">vendor_boot</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="startBtn" type="submit">Start</button>
+              <span id="statusBadge" class="badge">Idle</span>
+            </div>
+          </form>
+        </div>
+        <div class="step-display" id="stepDisplay">
+          <div class="step-icon" id="stepIcon"></div>
+          <div class="step-title" id="stepTitle">Ready to start</div>
+          <div class="step-status" id="stepStatus"></div>
+          <div class="progress-bar">
+            <div class="progress-bar-inner" id="progressBar"></div>
+          </div>
+        </div>
+        <div id="output-footer" class="footer">
+          <div>Download link: <span id="outWrap"><em>—</em></span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script src="script.js"></script>
+</body>
+</html>

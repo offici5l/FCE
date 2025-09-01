@@ -1,0 +1,9 @@
+{
+  "name": "proxy",
+  "version": "1.0.0",
+  "main": "trigger.js",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2.6.9"
+  }
+}

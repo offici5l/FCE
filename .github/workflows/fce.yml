@@ -1,0 +1,41 @@
+name: FCE
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "ROM Download URL"
+        required: true
+      file_to_extract:
+        description: "Name of the file to extract (e.g., boot, vendor_boot)"
+        required: true
+      unique_id:
+        description: "unique run identifier"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  fce:
+    name: ${{ github.event.inputs.unique_id }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/fce:latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+ 
+      - name: Download and Extract
+        run: /entrypoint.sh "${{ github.event.inputs.url }}" "${{ github.event.inputs.file_to_extract }}"
+
+      - name: Upload
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.unique_id }}
+          name: "FCE Output - ${{ github.event.inputs.unique_id }}"
+          draft: false
+          prerelease: false
+          files: /workspace/output/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
