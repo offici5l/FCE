@@ -39,45 +39,45 @@ if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
     exit 1
 fi
 
-if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
+if ! aria2c -x16 -s16 -o rom.zip "$URL" --console-log-level=warn; then
   echo "ERROR: Failed to download ROM." >&2
   exit 1
 fi
 
-# Clean the target directory before extraction to prevent overwrite prompts
-rm -rf ./extracted
 mkdir -p extracted
+mkdir -p ./output
+OUTPUT_IMG="./output/${FILE_TO_EXTRACT}.img"
+OUTPUT_ZIP="./output/${FILE_TO_EXTRACT}.zip"
 
-# Use -y flag to automatically say "yes" to any prompts from 7z
-if ! 7z x -y rom.zip -oextracted; then
-    echo "ERROR: Failed to extract ROM archive. Cleaning up..." >&2
+# Check archive content before extracting
+ARCHIVE_CONTENT=$(7z l -ba rom.zip)
+
+if echo "$ARCHIVE_CONTENT" | grep -q "$FILE_TO_EXTRACT.img"; then
+    echo "--> Found '$FILE_TO_EXTRACT.img' directly in archive. Extracting it..."
+    7z e -y rom.zip -o./output "$FILE_TO_EXTRACT.img"
+    # The file is now directly in ./output as FILE_TO_EXTRACT.img
+
+elif echo "$ARCHIVE_CONTENT" | grep -q "payload.bin"; then
+    echo "--> Found 'payload.bin' in archive. Extracting it..."
+    7z e -y rom.zip -oextracted payload.bin
+    
+    echo "--> Processing payload.bin..."
+    python3 /tools/payload_dumper.py --out ./output --images "$FILE_TO_EXTRACT" extracted/payload.bin
+    
+    if [ ! -f "$OUTPUT_IMG" ]; then
+        echo "ERROR: Could not find or extract '$FILE_TO_EXTRACT' from payload.bin." >&2
+        rm -f rom.zip
+        exit 1
+    fi
+else
+    echo "ERROR: Neither '$FILE_TO_EXTRACT.img' nor 'payload.bin' were found in the archive." >&2
     rm -f rom.zip
     exit 1
 fi
 
 rm -f rom.zip
-cd extracted
 
-mkdir -p ../output
-OUTPUT_IMG="../output/${FILE_TO_EXTRACT}.img"
-OUTPUT_ZIP="../output/${FILE_TO_EXTRACT}.zip"
-
-if [ -f "$FILE_TO_EXTRACT.img" ]; then
-    mv "$FILE_TO_EXTRACT.img" "$OUTPUT_IMG"
-elif [ -f "payload.bin" ]; then
-    python3 /tools/payload_dumper.py --out . --images "$FILE_TO_EXTRACT" payload.bin
-    if [ -f "$FILE_TO_EXTRACT.img" ]; then
-        mv "$FILE_TO_EXTRACT.img" "$OUTPUT_IMG"
-    else
-        echo "ERROR: Could not find or extract '$FILE_TO_EXTRACT' from payload.bin." >&2
-        exit 1
-    fi
-else
-    echo "ERROR: Neither '$FILE_TO_EXTRACT.img' nor 'payload.bin' were found in the ROM archive." >&2
-    exit 1
-fi
-
-cd ../output
+cd ./output
 if ! zip -9 "$OUTPUT_ZIP" "${FILE_TO_EXTRACT}.img"; then
     echo "ERROR: Failed to compress the image." >&2
     exit 1
