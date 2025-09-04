@@ -7,35 +7,23 @@ import logging
 from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_cors import CORS
 
-# --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- In-memory data store for tasks ---
-# Note: This is a simple solution for a single-server instance.
-# For a multi-server setup, a more robust solution like Redis would be needed.
 tasks = {}
 
-# --- Flask App Initialization ---
 app = Flask(__name__)
-CORS(app) # Enable CORS for all origins
+CORS(app)
 
 logging.info("FCE Service application starting up...")
 
-# --- Helper Function to run the extraction in a background thread ---
 def run_extraction_task(task_id, url, file_to_extract):
-    """Runs the entrypoint.sh script and captures its output."""
-    
     tasks[task_id]['status'] = 'running'
     app.logger.info(f"Task {task_id}: Status set to 'running'. Starting script...")
     
     try:
-        # Command to execute
         command = ["./entrypoint.sh", url, file_to_extract]
-        
-        # Use Popen to stream output in real-time
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         
-        # Read output line by line
         for line in iter(process.stdout.readline, ''):
             line = line.strip()
             if line:
@@ -63,15 +51,12 @@ def run_extraction_task(task_id, url, file_to_extract):
         tasks[task_id]['log'].append(f"ERROR: {error_message}")
         tasks[task_id]['status'] = 'error'
 
-# --- API Endpoints ---
-
 @app.route('/')
 def index():
-    return "<h1>FCE Live Streaming Service (v2)</h1><p>Ready to extract firmware content.</p>"
+    return "<h1>FCE Live Streaming Service (v3)</h1><p>Ready to extract firmware content.</p>"
 
 @app.route('/extract', methods=['POST'])
 def start_extract():
-    """Starts a new extraction task and returns a task ID."""
     app.logger.info(f"Received /extract request.")
     data = request.get_json()
     if not data or 'url' not in data or 'file' not in data:
@@ -82,7 +67,6 @@ def start_extract():
     tasks[task_id] = {'status': 'pending', 'log': [], 'output_file': None}
     app.logger.info(f"Created new task with ID: {task_id}")
     
-    # Start the background thread
     thread = threading.Thread(target=run_extraction_task, args=(task_id, data['url'], data['file']))
     thread.start()
     
@@ -90,7 +74,6 @@ def start_extract():
 
 @app.route('/status/<task_id>')
 def stream_status(task_id):
-    """Streams the status and log of a task using Server-Sent Events (SSE)."""
     app.logger.info(f"Request received for status stream for task: {task_id}")
     if task_id not in tasks:
         return jsonify({"error": "Task not found"}), 404
@@ -99,20 +82,15 @@ def stream_status(task_id):
         log_index = 0
         try:
             while True:
-                # Check overall task status first to break early if needed
-                status = tasks[task_id]['status']
-                if status == 'finished' or status == 'error':
+                if tasks[task_id]['status'] in ['finished', 'error']:
                     break
-
-                # Send new log lines if any
                 while log_index < len(tasks[task_id]['log']):
                     log_line = tasks[task_id]['log'][log_index]
                     yield f"data: {log_line}\n\n"
                     log_index += 1
-                
-                time.sleep(1) # Wait before checking for new logs again
+                time.sleep(1)
             
-            # Send final status event after loop breaks
+            status = tasks[task_id]['status']
             if status == 'finished':
                 app.logger.info(f"Task {task_id}: Sending 'done' event to client.")
                 yield f"event: done\ndata: Task finished successfully.\n\n"
@@ -127,7 +105,6 @@ def stream_status(task_id):
 
 @app.route('/download/<task_id>')
 def download_file(task_id):
-    """Downloads the final output file for a completed task."""
     app.logger.info(f"Request received for download for task: {task_id}")
     if task_id not in tasks or tasks[task_id]['status'] != 'finished':
         return jsonify({"error": "File not ready or task not found"}), 404
