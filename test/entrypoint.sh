@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 
 mkdir -p ./output
 
@@ -44,8 +44,12 @@ if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
   exit 1
 fi
 
+# Clean the target directory before extraction to prevent overwrite prompts
+rm -rf ./extracted
 mkdir -p extracted
-if ! 7z x rom.zip -oextracted; then
+
+# Use -y flag to automatically say "yes" to any prompts from 7z
+if ! 7z x -y rom.zip -oextracted; then
     echo "ERROR: Failed to extract ROM archive. Cleaning up..." >&2
     rm -f rom.zip
     exit 1
