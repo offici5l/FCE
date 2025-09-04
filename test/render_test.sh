@@ -7,36 +7,34 @@ FILE_TO_EXTRACT="boot"
 SERVICE_URL="https://fce-service.onrender.com"
 
 # --- Step 1: Start Task & Get ID ---
-echo "
-➐  Starting extraction task for '$FILE_TO_EXTRACT'..."
+echo "Starting extraction task for '$FILE_TO_EXTRACT'..."
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"url\":\"$ROM_URL\", \"file\":\"$FILE_TO_EXTRACT\"}" "$SERVICE_URL/extract")
 
 # Check if response is valid JSON with task_id
 if ! echo "$RESPONSE" | grep -q "task_id"; then
-    echo "❌ Error: Failed to start task. The server might be down or running an old version."
+    echo "Error: Failed to start task. The server might be down or running an old version."
     echo "Server Response: $RESPONSE"
     exit 1
 fi
 
 # Extract task_id using standard shell tools
-TASK_ID=$(echo "$RESPONSE" | sed -e 's/.*"task_id":"\([^"']\*\)".*/\1/')
-echo "✅ Task started successfully with ID: $TASK_ID"
+TASK_ID=$(echo "$RESPONSE" | sed -e 's/.*"task_id":"\([^"]*\)".*/\1/')
+echo "Task started successfully with ID: $TASK_ID"
 
 
 # --- Step 2: Stream Status ---
-echo "
-➐  Streaming live log... (Press Ctrl+C when you see the 'done' event)"
-echo "---------------------------------------------------"
+echo "---"
+echo "Streaming live log. Press Ctrl+C when the process is finished."
+echo "---"
 curl -N "$SERVICE_URL/status/$TASK_ID"
-echo "---------------------------------------------------"
+echo "
+---"
 
 
 # --- Step 3: Download File ---
-read -p "
-➐  Press Enter to download the output file..."
-echo "
-➐  Downloading file..."
+read -p "Press Enter to download the output file..."
+echo "Downloading file..."
 curl --progress-bar -o "${FILE_TO_EXTRACT}.zip" "$SERVICE_URL/download/$TASK_ID"
 
 echo "
-✅ Download complete. File saved as ${FILE_TO_EXTRACT}.zip"
+Download complete. File saved as ${FILE_TO_EXTRACT}.zip"
