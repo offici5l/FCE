@@ -1,8 +1,8 @@
 # Use a slim Python image as the base
 FROM python:3.11-slim
 
-# Set the working directory inside the container
-WORKDIR /app
+# Set the primary working directory for the container
+WORKDIR /workspace
 
 # --- Install System Dependencies ---
 # Install tools required for the extraction process
@@ -30,14 +30,14 @@ ENV PATH="/tools:${PATH}"
 # Install dependencies for payload_dumper
 RUN pip install --no-cache-dir -r /tools/requirements.txt
 
-# Copy the web service requirements file
+# Copy the web service requirements file into the workspace
 COPY requirements.txt .
 
 # Install dependencies for the Flask web service
 RUN pip install --no-cache-dir -r requirements.txt
 
 # --- Copy Application Files ---
-# Copy the Flask app and the entrypoint script into the container
+# Copy the Flask app and the entrypoint script into the workspace
 COPY app.py .
 COPY entrypoint.sh .
 

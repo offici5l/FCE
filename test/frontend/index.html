@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCE - Local Test</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 2rem; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        h1 { text-align: center; color: #444; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        input { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 1rem; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; transition: background-color 0.3s; }
+        button:disabled { background-color: #a0a0a0; }
+        button:hover:not(:disabled) { background-color: #0056b3; }
+        .status { margin-top: 1.5rem; padding: 1rem; background: #e9ecef; border-radius: 4px; }
+        .status-title { font-weight: bold; }
+        .status-message { margin-top: 0.5rem; word-wrap: break-word; }
+        .badge { padding: 0.3rem 0.6rem; border-radius: 4px; font-weight: bold; color: white; }
+        .badge.err { background-color: #dc3545; }
+        .badge.warn { background-color: #ffc107; color: #333; }
+        .badge.ok { background-color: #28a745; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>FCE - Local Test</h1>
+        <form id="fceForm">
+            <div class="form-group">
+                <label for="url">ROM Download URL</label>
+                <input type="url" id="url" placeholder="https://example.com/firmware.zip" required>
+            </div>
+            <div class="form-group">
+                <label for="file">File to Extract</label>
+                <input type="text" id="file" placeholder="boot" required>
+            </div>
+            <button type="submit" id="startBtn">Start Extraction</button>
+        </form>
+
+        <div class="status">
+            <p><span class="status-title">Status:</span> <span id="status-message">Idle</span></p>
+            <p><span id="badge" class="badge"></span></p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

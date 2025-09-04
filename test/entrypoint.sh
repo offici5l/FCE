@@ -1,7 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-mkdir -p /workspace/output
+# This script now runs inside /workspace, which is the WORKDIR.
+
+# Create the output directory relative to the current path
+mkdir -p ./output
 
 # Check for required tools
 for tool in aria2c 7z python3 zip; do
@@ -57,7 +60,7 @@ echo "--> Final download URL: $URL"
 
 
 # --- Main Logic ---
-cd /workspace
+# We are already in /workspace, no need for `cd /workspace`
 echo "--> Downloading ROM from $URL"
 if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
   echo "ERROR: Failed to download ROM." >&2
@@ -73,6 +76,8 @@ fi
 cd extracted
 
 # --- Output Handling ---
+# Paths are relative to the `extracted` directory, so `../output` correctly
+# points to `/workspace/output`.
 mkdir -p ../output
 
 OUTPUT_IMG="../output/${FILE_TO_EXTRACT}.img"
