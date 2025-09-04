@@ -1,4 +1,3 @@
-
 (function() {
     // DOM elements
     const form = document.getElementById('fceForm');
@@ -8,8 +7,8 @@
     const statusMessage = document.getElementById('status-message');
     const badge = document.getElementById('badge');
 
-    // The local endpoint for the Docker service
-    const localEndpoint = 'https://fce-service.onrender.com/extract';
+    // The Render service endpoint
+    const renderEndpoint = 'https://fce-service.onrender.com/extract';
 
     function setStatus(message, badgeType, badgeText) {
         statusMessage.textContent = message;
@@ -47,10 +46,10 @@
 
         // Disable button and set initial status
         startBtn.disabled = true;
-        setStatus('Sending request to local server... This might take a very long time. Please be patient and check the Docker logs for progress.', 'warn', 'Working');
+        setStatus('Sending request to Render service... This might take a very long time. Please be patient.', 'warn', 'Working');
 
         try {
-            const response = await fetch(localEndpoint, {
+            const response = await fetch(renderEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url, file })
@@ -73,7 +72,7 @@
 
         } catch (err) {
             console.error('Network or other error:', err);
-            setStatus('Could not connect to the local server. Is the Docker container running and is port 8080 mapped?', 'err', 'Error');
+            setStatus('Could not connect to the Render service. Please check your internet connection and the service URL.', 'err', 'Error');
         } finally {
             // Re-enable the button
             startBtn.disabled = false;

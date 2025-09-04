@@ -1,10 +1,13 @@
-
 import os
 import subprocess
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Enable CORS for all origins. This allows the frontend to call the API.
+CORS(app)
 
 # Define the output directory
 OUTPUT_DIR = "/workspace/output"
