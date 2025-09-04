@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# This script now runs inside /workspace, which is the WORKDIR.
-
 # Create the output directory relative to the current path
 mkdir -p ./output
 
@@ -17,18 +15,19 @@ done
 # --- Input Validation ---
 if [ -z "${1-}" ]; then
   echo "ERROR: ROM URL not provided." >&2
-  echo "Usage: $0 <URL> <FILE_TO_EXTRACT>" >&2
   exit 1
 fi
-
 if [ -z "${2-}" ]; then
   echo "ERROR: File to extract not provided." >&2
-  echo "Usage: $0 <URL> <FILE_TO_EXTRACT>" >&2
   exit 1
 fi
 
 URL="$1"
 FILE_TO_EXTRACT="$2"
+
+# --- Log initial disk space ---
+echo "--> Initial disk space:"
+df -h .
 
 # --- URL Transformation ---
 echo "--> Transforming URL..."
@@ -43,55 +42,56 @@ MIUI_DOMAINS=(
   "airtel.bigota.d.miui.com"
 )
 REPLACEMENT_DOMAIN="bkt-sgp-miui-ota-update-alisgp.oss-ap-southeast-1.aliyuncs.com"
-
 for domain in "${MIUI_DOMAINS[@]}"; do
   if [[ "$URL" == *"$domain"* ]]; then
     URL="${URL/$domain/$REPLACEMENT_DOMAIN}"
     break
   fi
 done
-
 if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
     echo "ERROR: Only .zip URLs are supported."
     exit 1
 fi
-
 echo "--> Final download URL: $URL"
 
-
 # --- Main Logic ---
-# We are already in /workspace, no need for `cd /workspace`
 echo "--> Downloading ROM from $URL"
 if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
   echo "ERROR: Failed to download ROM." >&2
   exit 1
 fi
 
+# --- Log disk space after download ---
+echo "--> Disk space after download:"
+df -h .
+
+
 echo "--> Extracting ROM..."
 mkdir -p extracted
-if ! 7z x rom.zip -oextracted >/dev/null; then
-    echo "ERROR: Failed to extract ROM archive." >&2
+# Modified to show 7z errors instead of hiding them with >/dev/null
+if ! 7z x rom.zip -oextracted; then
+    echo "ERROR: Failed to extract ROM archive. Cleaning up..." >&2
+    rm -f rom.zip
     exit 1
 fi
+
+# --- Clean up downloaded file to save space ---
+echo "--> Deleting rom.zip to save space..."
+rm -f rom.zip
+
 cd extracted
 
 # --- Output Handling ---
-# Paths are relative to the `extracted` directory, so `../output` correctly
-# points to `/workspace/output`.
 mkdir -p ../output
-
 OUTPUT_IMG="../output/${FILE_TO_EXTRACT}.img"
 OUTPUT_ZIP="../output/${FILE_TO_EXTRACT}.zip"
 
-# Check if the file already exists
 if [ -f "$FILE_TO_EXTRACT.img" ]; then
     echo "--> Found '$FILE_TO_EXTRACT.img' directly in the archive."
     mv "$FILE_TO_EXTRACT.img" "$OUTPUT_IMG"
-# If not, check for payload.bin and extract from it
 elif [ -f "payload.bin" ]; then
     echo "--> payload.bin found, attempting to extract '$FILE_TO_EXTRACT'..."
     python3 /tools/payload_dumper.py --out . --images "$FILE_TO_EXTRACT" payload.bin
-
     if [ -f "$FILE_TO_EXTRACT.img" ]; then
         echo "--> Successfully extracted '$FILE_TO_EXTRACT.img'."
         mv "$FILE_TO_EXTRACT.img" "$OUTPUT_IMG"
@@ -111,8 +111,6 @@ if ! zip -9 "$OUTPUT_ZIP" "${FILE_TO_EXTRACT}.img"; then
     echo "ERROR: Failed to compress the image." >&2
     exit 1
 fi
-
-# Delete the original .img after successful compression
 rm -f "${FILE_TO_EXTRACT}.img"
 
 echo "SUCCESS: Final file is available at '$OUTPUT_ZIP'"

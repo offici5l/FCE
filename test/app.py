@@ -1,76 +1,142 @@
 import os
 import subprocess
-from flask import Flask, request, jsonify, send_from_directory
+import uuid
+import threading
+import time
+import logging
+from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_cors import CORS
 
-# Initialize Flask app
+# --- Logging Configuration ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- In-memory data store for tasks ---
+# Note: This is a simple solution for a single-server instance.
+# For a multi-server setup, a more robust solution like Redis would be needed.
+tasks = {}
+
+# --- Flask App Initialization ---
 app = Flask(__name__)
+CORS(app) # Enable CORS for all origins
 
-# Enable CORS for all origins. This allows the frontend to call the API.
-CORS(app)
+logging.info("FCE Service application starting up...")
 
-# Define the output directory
-OUTPUT_DIR = "/workspace/output"
-# The entrypoint script is now in the same directory
-ENTRYPOINT_SCRIPT = "./entrypoint.sh"
+# --- Helper Function to run the extraction in a background thread ---
+def run_extraction_task(task_id, url, file_to_extract):
+    """Runs the entrypoint.sh script and captures its output."""
+    
+    tasks[task_id]['status'] = 'running'
+    app.logger.info(f"Task {task_id}: Status set to 'running'. Starting script...")
+    
+    try:
+        # Command to execute
+        command = ["./entrypoint.sh", url, file_to_extract]
+        
+        # Use Popen to stream output in real-time
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        
+        # Read output line by line
+        for line in iter(process.stdout.readline, ''):
+            line = line.strip()
+            if line:
+                app.logger.info(f"Task {task_id} Log: {line}")
+                tasks[task_id]['log'].append(line)
+        
+        process.stdout.close()
+        return_code = process.wait()
+        
+        if return_code == 0:
+            output_filename = f"{file_to_extract}.zip"
+            output_path = os.path.join("/workspace/output", output_filename)
+            if os.path.exists(output_path):
+                tasks[task_id]['status'] = 'finished'
+                tasks[task_id]['output_file'] = output_path
+                app.logger.info(f"Task {task_id}: Status set to 'finished'.")
+            else:
+                raise FileNotFoundError("Extraction succeeded, but output file was not found.")
+        else:
+            raise Exception(f"Extraction script failed with return code {return_code}.")
+
+    except Exception as e:
+        error_message = str(e)
+        app.logger.error(f"Task {task_id}: An exception occurred: {error_message}")
+        tasks[task_id]['log'].append(f"ERROR: {error_message}")
+        tasks[task_id]['status'] = 'error'
+
+# --- API Endpoints ---
 
 @app.route('/')
 def index():
-    """A simple endpoint to confirm the server is running."""
-    return "<h1>FCE Web Service</h1><p>Ready to extract firmware content.</p>"
+    return "<h1>FCE Live Streaming Service (v2)</h1><p>Ready to extract firmware content.</p>"
 
 @app.route('/extract', methods=['POST'])
-def extract():
-    """
-    The main endpoint to trigger the extraction process.
-    Expects a JSON body with 'url' and 'file'.
-    """
-    # Get data from the request
+def start_extract():
+    """Starts a new extraction task and returns a task ID."""
+    app.logger.info(f"Received /extract request.")
     data = request.get_json()
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
-
-    rom_url = data.get('url')
-    file_to_extract = data.get('file')
-
-    if not rom_url or not file_to_extract:
+    if not data or 'url' not in data or 'file' not in data:
+        app.logger.warning("Malformed /extract request received.")
         return jsonify({"error": "Missing 'url' or 'file' parameters"}), 400
 
-    # --- Run the extraction script ---
-    # Ensure the script is executable
-    subprocess.run(['chmod', '+x', ENTRYPOINT_SCRIPT], check=True)
+    task_id = str(uuid.uuid4())
+    tasks[task_id] = {'status': 'pending', 'log': [], 'output_file': None}
+    app.logger.info(f"Created new task with ID: {task_id}")
     
-    # Execute the script
-    process = subprocess.run(
-        [ENTRYPOINT_SCRIPT, rom_url, file_to_extract],
-        capture_output=True,
-        text=True
-    )
+    # Start the background thread
+    thread = threading.Thread(target=run_extraction_task, args=(task_id, data['url'], data['file']))
+    thread.start()
+    
+    return jsonify({"task_id": task_id})
 
-    # --- Handle the result ---
-    if process.returncode != 0:
-        # If the script fails, return the error log
-        error_log = process.stderr or process.stdout
-        return jsonify({
-            "error": "Extraction script failed.",
-            "log": error_log
-        }), 500
+@app.route('/status/<task_id>')
+def stream_status(task_id):
+    """Streams the status and log of a task using Server-Sent Events (SSE)."""
+    app.logger.info(f"Request received for status stream for task: {task_id}")
+    if task_id not in tasks:
+        return jsonify({"error": "Task not found"}), 404
 
-    # If successful, find the output file
-    output_filename = f"{file_to_extract}.zip"
-    output_path = os.path.join(OUTPUT_DIR, output_filename)
+    def generate():
+        log_index = 0
+        try:
+            while True:
+                # Check overall task status first to break early if needed
+                status = tasks[task_id]['status']
+                if status == 'finished' or status == 'error':
+                    break
 
-    if os.path.exists(output_path):
-        # Send the file for download
-        # Note: In a production environment, it's better to upload this to a
-        # persistent storage (like S3) and return a URL.
-        # For Render's free tier, direct download might be slow or time out.
-        return send_from_directory(OUTPUT_DIR, output_filename, as_attachment=True)
-    else:
-        # If the output file is not found for some reason
-        return jsonify({"error": "Extraction successful, but output file not found."}), 500
+                # Send new log lines if any
+                while log_index < len(tasks[task_id]['log']):
+                    log_line = tasks[task_id]['log'][log_index]
+                    yield f"data: {log_line}\n\n"
+                    log_index += 1
+                
+                time.sleep(1) # Wait before checking for new logs again
+            
+            # Send final status event after loop breaks
+            if status == 'finished':
+                app.logger.info(f"Task {task_id}: Sending 'done' event to client.")
+                yield f"event: done\ndata: Task finished successfully.\n\n"
+            elif status == 'error':
+                app.logger.info(f"Task {task_id}: Sending 'error' event to client.")
+                yield f"event: error\ndata: Task failed.\n\n"
+
+        except GeneratorExit:
+            app.logger.info(f"Client disconnected from task {task_id} stream.")
+
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/download/<task_id>')
+def download_file(task_id):
+    """Downloads the final output file for a completed task."""
+    app.logger.info(f"Request received for download for task: {task_id}")
+    if task_id not in tasks or tasks[task_id]['status'] != 'finished':
+        return jsonify({"error": "File not ready or task not found"}), 404
+    
+    output_file = tasks[task_id]['output_file']
+    dir_name, file_name = os.path.split(output_file)
+    
+    return send_from_directory(dir_name, file_name, as_attachment=True)
 
 if __name__ == "__main__":
-    # Render provides the PORT environment variable
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
