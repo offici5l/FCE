@@ -27,7 +27,7 @@ MIUI_DOMAINS=(
   "cdn-ota.azureedge.net"
   "airtel.bigota.d.miui.com"
 )
-REPLACEMENT_DOMAIN="cdn-ota.azureedge.net"
+REPLACEMENT_DOMAIN="bkt-sgp-miui-ota-update-alisgp.oss-ap-southeast-1.aliyuncs.com"
 for domain in "${MIUI_DOMAINS[@]}"; do
   if [[ "$URL" == *"$domain"* ]]; then
     URL="${URL/$domain/$REPLACEMENT_DOMAIN}"
