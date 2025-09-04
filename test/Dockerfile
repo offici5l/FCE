@@ -3,6 +3,8 @@ FROM python:3.11-slim
 WORKDIR /workspace
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    p7zip-full \
+    aria2 \
     git \
     zip \
     && rm -rf /var/lib/apt/lists/*
