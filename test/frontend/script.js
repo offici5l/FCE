@@ -42,11 +42,21 @@
                 body: JSON.stringify({ url, file })
             });
 
-            if (!startResponse.ok) {
-                throw new Error('Failed to start the task on the server.');
+            const responseText = await startResponse.text();
+            let task_id;
+
+            try {
+                const jsonData = JSON.parse(responseText);
+                if (jsonData.task_id) {
+                    task_id = jsonData.task_id;
+                } else {
+                    throw new Error(jsonData.error || 'Unknown error in server response.');
+                }
+            } catch (e) {
+                console.error("Could not parse JSON response from /extract. Raw response:", responseText);
+                throw new Error('Server returned an invalid response. It might be running an old version of the code. Check browser console for details.');
             }
 
-            const { task_id } = await startResponse.json();
             logContainer.innerHTML += `Task started with ID: ${task_id}\nConnecting to live log...\n\n`;
 
             // 2. Connect to the live status stream
@@ -55,7 +65,6 @@
             // 3. Handle incoming log messages
             eventSource.onmessage = (event) => {
                 logContainer.innerHTML += `${event.data}\n`;
-                // Auto-scroll to the bottom
                 logContainer.scrollTop = logContainer.scrollHeight;
             };
 
@@ -69,18 +78,15 @@
             });
 
             // 5. Handle any errors
-            eventSource.onerror = (err) => {
+            const errorHandler = (err) => {
                 eventSource.close();
-                logContainer.innerHTML += '\nERROR: Connection to status stream failed. Please check the server logs on Render.';
+                const message = (err && err.type === 'error' && err.data) ? err.data : 'Connection to status stream failed. Please check the server logs on Render.';
+                logContainer.innerHTML += `\nERROR: ${message}`;
                 console.error("EventSource failed:", err);
                 startBtn.disabled = false;
             };
-            
-            eventSource.addEventListener('error', (event) => {
-                eventSource.close();
-                logContainer.innerHTML += `\nERROR: ${event.data}\n`;
-                startBtn.disabled = false;
-            });
+            eventSource.onerror = errorHandler;
+            eventSource.addEventListener('error', errorHandler);
 
         } catch (err) {
             logContainer.innerHTML += `\nFATAL: ${err.message}`;
