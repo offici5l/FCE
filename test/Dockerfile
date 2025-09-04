@@ -3,11 +3,8 @@ FROM python:3.11-slim
 WORKDIR /workspace
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    p7zip-full \
-    aria2 \
     git \
     zip \
-    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/vm03/payload_dumper.git /tools
