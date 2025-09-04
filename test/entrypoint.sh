@@ -49,16 +49,12 @@ mkdir -p ./output
 OUTPUT_IMG="./output/${FILE_TO_EXTRACT}.img"
 OUTPUT_ZIP="./output/${FILE_TO_EXTRACT}.zip"
 
-# Check archive content by piping directly to grep, avoiding large variable storage
 if 7z l -ba rom.zip | grep -q "$FILE_TO_EXTRACT.img"; then
-    echo "--> Found '$FILE_TO_EXTRACT.img' directly in archive. Extracting it..."
     7z e -y rom.zip -o./output "$FILE_TO_EXTRACT.img"
     
 elif 7z l -ba rom.zip | grep -q "payload.bin"; then
-    echo "--> Found 'payload.bin' in archive. Extracting it..."
     7z e -y rom.zip -oextracted payload.bin
     
-    echo "--> Processing payload.bin..."
     python3 /tools/payload_dumper.py --out ./output --images "$FILE_TO_EXTRACT" extracted/payload.bin
     
     if [ ! -f "$OUTPUT_IMG" ]; then
@@ -74,7 +70,6 @@ fi
 
 rm -f rom.zip
 
-# Removed 'cd ./output' - now running zip from /workspace
 if ! zip -9 "$OUTPUT_ZIP" "$OUTPUT_IMG"; then
     echo "ERROR: Failed to compress the image." >&2
     exit 1
