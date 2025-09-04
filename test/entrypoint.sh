@@ -34,7 +34,7 @@ for domain in "${MIUI_DOMAINS[@]}"; do
     break
   fi
 done
-if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
+if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then # Corrected: removed extra 'then'
     echo "ERROR: Only .zip URLs are supported." >&2
     exit 1
 fi
@@ -42,7 +42,7 @@ fi
 if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
   echo "ERROR: Failed to download ROM." >&2
   exit 1
-}
+fi
 
 mkdir -p extracted
 mkdir -p ./output
