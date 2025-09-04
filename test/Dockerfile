@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     aria2 \
     git \
     zip \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/vm03/payload_dumper.git /tools
@@ -24,7 +25,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
-COPY fast_extractor.py .
 COPY entrypoint.sh .
 
 RUN chmod +x ./entrypoint.sh
