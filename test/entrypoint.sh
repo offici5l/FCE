@@ -34,25 +34,35 @@ for domain in "${MIUI_DOMAINS[@]}"; do
     break
   fi
 done
+
 if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
     echo "ERROR: Only .zip URLs are supported." >&2
     exit 1
 fi
 
-if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
+if ! aria2c -x16 -s16 --console-log-level=warn --summary-interval=1 -o rom.zip "$URL"; then
   echo "ERROR: Failed to download ROM." >&2
   exit 1
 fi
 
-mkdir -p extracted
-mkdir -p ./output
 OUTPUT_IMG="./output/${FILE_TO_EXTRACT}.img"
 OUTPUT_ZIP="./output/${FILE_TO_EXTRACT}.zip"
 
-if 7z l -ba rom.zip | grep -q "$FILE_TO_EXTRACT.img"; then
-    7z e -y rom.zip -o./output "$FILE_TO_EXTRACT.img"
-    
-elif 7z l -ba rom.zip | grep -q "payload.bin"; then
+echo "[INFO] Listing ROM contents..."
+ROM_CONTENTS=$(7z l -ba rom.zip)
+echo "$ROM_CONTENTS"
+
+if echo "$ROM_CONTENTS" | grep -q "$FILE_TO_EXTRACT.img"; then
+    echo "[INFO] Extracting $FILE_TO_EXTRACT.img directly..."
+    if ! 7z e -so rom.zip "$FILE_TO_EXTRACT.img" | zip -9 "$OUTPUT_ZIP" - >/dev/null; then
+        echo "ERROR: Failed to extract and compress $FILE_TO_EXTRACT.img" >&2
+        rm -f rom.zip
+        exit 1
+    fi
+
+elif echo "$ROM_CONTENTS" | grep -q "payload.bin"; then
+    echo "[INFO] Extracting from payload.bin..."
+    mkdir -p extracted
     7z e -y rom.zip -oextracted payload.bin
     
     python3 /tools/payload_dumper.py --out ./output --images "$FILE_TO_EXTRACT" extracted/payload.bin
@@ -62,6 +72,13 @@ elif 7z l -ba rom.zip | grep -q "payload.bin"; then
         rm -f rom.zip
         exit 1
     fi
+
+    if ! zip -9 "$OUTPUT_ZIP" "$OUTPUT_IMG" >/dev/null; then
+        echo "ERROR: Failed to compress the image." >&2
+        rm -f rom.zip "$OUTPUT_IMG"
+        exit 1
+    fi
+    rm -f "$OUTPUT_IMG"
 else
     echo "ERROR: Neither '$FILE_TO_EXTRACT.img' nor 'payload.bin' were found in the archive." >&2
     rm -f rom.zip
@@ -69,11 +86,6 @@ else
 fi
 
 rm -f rom.zip
-
-if ! zip -9 "$OUTPUT_ZIP" "$OUTPUT_IMG"; then
-    echo "ERROR: Failed to compress the image." >&2
-    exit 1
-fi
-rm -f "$OUTPUT_IMG"
+echo "[DONE] Extracted and compressed: $OUTPUT_ZIP"
 
 exit 0
