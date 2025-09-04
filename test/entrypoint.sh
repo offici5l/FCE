@@ -35,29 +35,26 @@ for domain in "${MIUI_DOMAINS[@]}"; do
   fi
 done
 if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
-    echo "ERROR: Only .zip URLs are supported."
+    echo "ERROR: Only .zip URLs are supported." >&2
     exit 1
 fi
 
-if ! aria2c -x16 -s16 -o rom.zip "$URL" --console-log-level=warn; then
+if ! aria2c -x16 -s16 -o rom.zip "$URL"; then
   echo "ERROR: Failed to download ROM." >&2
   exit 1
-fi
+}
 
 mkdir -p extracted
 mkdir -p ./output
 OUTPUT_IMG="./output/${FILE_TO_EXTRACT}.img"
 OUTPUT_ZIP="./output/${FILE_TO_EXTRACT}.zip"
 
-# Check archive content before extracting
-ARCHIVE_CONTENT=$(7z l -ba rom.zip)
-
-if echo "$ARCHIVE_CONTENT" | grep -q "$FILE_TO_EXTRACT.img"; then
+# Check archive content by piping directly to grep, avoiding large variable storage
+if 7z l -ba rom.zip | grep -q "$FILE_TO_EXTRACT.img"; then
     echo "--> Found '$FILE_TO_EXTRACT.img' directly in archive. Extracting it..."
     7z e -y rom.zip -o./output "$FILE_TO_EXTRACT.img"
-    # The file is now directly in ./output as FILE_TO_EXTRACT.img
-
-elif echo "$ARCHIVE_CONTENT" | grep -q "payload.bin"; then
+    
+elif 7z l -ba rom.zip | grep -q "payload.bin"; then
     echo "--> Found 'payload.bin' in archive. Extracting it..."
     7z e -y rom.zip -oextracted payload.bin
     
