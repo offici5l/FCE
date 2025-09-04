@@ -82,21 +82,27 @@ def stream_status(task_id):
         log_index = 0
         try:
             while True:
-                if tasks[task_id]['status'] in ['finished', 'error']:
-                    break
+                # Send new log lines
                 while log_index < len(tasks[task_id]['log']):
                     log_line = tasks[task_id]['log'][log_index]
                     yield f"data: {log_line}\n\n"
                     log_index += 1
-                time.sleep(1)
-            
-            status = tasks[task_id]['status']
-            if status == 'finished':
-                app.logger.info(f"Task {task_id}: Sending 'done' event to client.")
-                yield f"event: done\ndata: Task finished successfully.\n\n"
-            elif status == 'error':
-                app.logger.info(f"Task {task_id}: Sending 'error' event to client.")
-                yield f"event: error\ndata: Task failed.\n\n"
+
+                status = tasks[task_id]['status']
+                if status == 'finished':
+                    yield f"event: done\ndata: Task finished successfully.\n\n"
+                    break
+                elif status == 'error':
+                    # Send all remaining log lines first
+                    while log_index < len(tasks[task_id]['log']):
+                        log_line = tasks[task_id]['log'][log_index]
+                        yield f"data: {log_line}\n\n"
+                        log_index += 1
+                    # Then send the final error event
+                    yield f"event: error\ndata: Task failed. Check logs above for details.\n\n"
+                    break
+                
+                time.sleep(1) # Wait before checking for new logs again
 
         except GeneratorExit:
             app.logger.info(f"Client disconnected from task {task_id} stream.")
