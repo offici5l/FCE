@@ -4,77 +4,87 @@
     const urlInput = document.getElementById('url');
     const fileInput = document.getElementById('file');
     const startBtn = document.getElementById('startBtn');
-    const statusMessage = document.getElementById('status-message');
-    const badge = document.getElementById('badge');
+    const statusArea = document.getElementById('statusArea');
+    const logContainer = document.getElementById('log');
+    const downloadBtn = document.getElementById('downloadBtn');
 
-    // The Render service endpoint
-    const renderEndpoint = 'https://fce-service.onrender.com/extract';
+    // The Render service endpoint base URL
+    const apiBaseUrl = 'https://fce-service.onrender.com';
 
-    function setStatus(message, badgeType, badgeText) {
-        statusMessage.textContent = message;
-        if (badgeType && badgeText) {
-            badge.textContent = badgeText;
-            badge.className = `badge ${badgeType}`;
-        } else {
-            badge.textContent = '';
-        }
-    }
-
-    // Function to trigger file download in the browser
-    function downloadFile(blob, filename) {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+    function resetUI() {
+        startBtn.disabled = false;
+        statusArea.classList.add('hidden');
+        downloadBtn.classList.add('hidden');
+        logContainer.innerHTML = '';
     }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        resetUI();
 
         const url = urlInput.value.trim();
         const file = fileInput.value.trim();
 
         if (!url || !file) {
-            setStatus('Please provide both a URL and a file name.', 'err', 'Error');
+            alert('Please provide both a URL and a file name.');
             return;
         }
 
-        // Disable button and set initial status
         startBtn.disabled = true;
-        setStatus('Sending request to Render service... This might take a very long time. Please be patient.', 'warn', 'Working');
+        statusArea.classList.remove('hidden');
+        logContainer.innerHTML = 'Requesting task...\n';
 
         try {
-            const response = await fetch(renderEndpoint, {
+            // 1. Start the extraction task
+            const startResponse = await fetch(`${apiBaseUrl}/extract`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url, file })
             });
 
-            const contentType = response.headers.get("content-type");
-
-            if (response.ok && contentType && contentType.includes("application/zip")) {
-                // --- Success: Handle File Download ---
-                setStatus('Success! File is ready. Download will begin shortly.', 'ok', 'Success');
-                const blob = await response.blob();
-                downloadFile(blob, `${file}.zip`);
-            } else {
-                // --- Error: Handle JSON error from server ---
-                const errorData = await response.json();
-                const errorMessage = errorData.log || errorData.error || 'An unknown error occurred.';
-                console.error('Server Error:', errorMessage);
-                setStatus(`Error: ${errorMessage}`, 'err', 'Error');
+            if (!startResponse.ok) {
+                throw new Error('Failed to start the task on the server.');
             }
 
+            const { task_id } = await startResponse.json();
+            logContainer.innerHTML += `Task started with ID: ${task_id}\nConnecting to live log...\n\n`;
+
+            // 2. Connect to the live status stream
+            const eventSource = new EventSource(`${apiBaseUrl}/status/${task_id}`);
+
+            // 3. Handle incoming log messages
+            eventSource.onmessage = (event) => {
+                logContainer.innerHTML += `${event.data}\n`;
+                // Auto-scroll to the bottom
+                logContainer.scrollTop = logContainer.scrollHeight;
+            };
+
+            // 4. Handle the 'done' event
+            eventSource.addEventListener('done', (event) => {
+                eventSource.close();
+                logContainer.innerHTML += `\nSUCCESS: ${event.data}\n`;
+                downloadBtn.href = `${apiBaseUrl}/download/${task_id}`;
+                downloadBtn.classList.remove('hidden');
+                startBtn.disabled = false;
+            });
+
+            // 5. Handle any errors
+            eventSource.onerror = (err) => {
+                eventSource.close();
+                logContainer.innerHTML += '\nERROR: Connection to status stream failed. Please check the server logs on Render.';
+                console.error("EventSource failed:", err);
+                startBtn.disabled = false;
+            };
+            
+            eventSource.addEventListener('error', (event) => {
+                eventSource.close();
+                logContainer.innerHTML += `\nERROR: ${event.data}\n`;
+                startBtn.disabled = false;
+            });
+
         } catch (err) {
-            console.error('Network or other error:', err);
-            setStatus('Could not connect to the Render service. Please check your internet connection and the service URL.', 'err', 'Error');
-        } finally {
-            // Re-enable the button
+            logContainer.innerHTML += `\nFATAL: ${err.message}`;
+            console.error('Fatal error:', err);
             startBtn.disabled = false;
         }
     });
