@@ -34,7 +34,7 @@ for domain in "${MIUI_DOMAINS[@]}"; do
     break
   fi
 done
-if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then # Corrected: removed extra 'then'
+if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
     echo "ERROR: Only .zip URLs are supported." >&2
     exit 1
 fi
@@ -74,11 +74,11 @@ fi
 
 rm -f rom.zip
 
-cd ./output
-if ! zip -9 "$OUTPUT_ZIP" "${FILE_TO_EXTRACT}.img"; then
+# Removed 'cd ./output' - now running zip from /workspace
+if ! zip -9 "$OUTPUT_ZIP" "$OUTPUT_IMG"; then
     echo "ERROR: Failed to compress the image." >&2
     exit 1
 fi
-rm -f "${FILE_TO_EXTRACT}.img"
+rm -f "$OUTPUT_IMG"
 
 exit 0
