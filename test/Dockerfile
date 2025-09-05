@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     zip \
     unzip \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/vm03/payload_dumper.git /tools

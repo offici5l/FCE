@@ -40,51 +40,52 @@ if [[ ! "$URL" =~ \.zip(\?.*)?$ ]]; then
     exit 1
 fi
 
-echo "[INFO] Analyzing ROM structure..."
-ROM_INFO=$(curl -s -I "$URL")
-CONTENT_LENGTH=$(echo "$ROM_INFO" | grep -i "content-length" | awk '{print $2}' | tr -d '\r')
-
-if [ -z "$CONTENT_LENGTH" ]; then
-    echo "ERROR: Could not determine ROM size" >&2
-    exit 1
+if ! aria2c -x16 -s16 --console-log-level=warn --summary-interval=1 -o rom.zip "$URL"; then
+  echo "ERROR: Failed to download ROM." >&2
+  exit 1
 fi
 
-END_RANGE=$((CONTENT_LENGTH > 100000 ? 100000 : CONTENT_LENGTH))
-curl -s -H "Range: bytes=$((CONTENT_LENGTH-END_RANGE))-$CONTENT_LENGTH" "$URL" > rom_tail.zip
+OUTPUT_IMG="./output/${FILE_TO_EXTRACT}.img"
+OUTPUT_ZIP="./output/${FILE_TO_EXTRACT}.zip"
 
-ROM_CONTENTS=$(7z l -ba rom_tail.zip)
+echo "[INFO] Listing ROM contents..."
+ROM_CONTENTS=$(7z l -ba rom.zip)
 echo "$ROM_CONTENTS"
 
 if echo "$ROM_CONTENTS" | grep -q "$FILE_TO_EXTRACT.img"; then
-    FILE_INFO=$(7z l -ba rom_tail.zip | grep "$FILE_TO_EXTRACT.img")
-    OFFSET=$(echo "$FILE_INFO" | awk '{print $3}')
-    SIZE=$(echo "$FILE_INFO" | awk '{print $4}')
-    echo "[INFO] Downloading only $FILE_TO_EXTRACT.img (offset: $OFFSET, size: $SIZE)"
-    aria2c -x16 -s16 --console-log-level=warn --summary-interval=0 \
-           --header="Range: bytes=$OFFSET-$((OFFSET+SIZE-1))" \
-           -o "$FILE_TO_EXTRACT.img" "$URL"
-    zip -9 "./output/${FILE_TO_EXTRACT}.zip" "$FILE_TO_EXTRACT.img"
-    rm -f "$FILE_TO_EXTRACT.img"
-
-elif echo "$ROM_CONTENTS" | grep -q "payload.bin"; then
-    FILE_INFO=$(7z l -ba rom_tail.zip | grep "payload.bin")
-    OFFSET=$(echo "$FILE_INFO" | awk '{print $3}')
-    SIZE=$(echo "$FILE_INFO" | awk '{print $4}')
-    echo "[INFO] Downloading only payload.bin"
-    aria2c -x16 -s16 --console-log-level=warn --summary-interval=0 \
-           --header="Range: bytes=$OFFSET-$((OFFSET+SIZE-1))" \
-           -o "payload.bin" "$URL"
-    python3 /tools/payload_dumper.py --out ./output --images "$FILE_TO_EXTRACT" payload.bin
-    if [ ! -f "./output/${FILE_TO_EXTRACT}.img" ]; then
-        echo "ERROR: Could not extract '$FILE_TO_EXTRACT' from payload.bin" >&2
+    echo "[INFO] Extracting $FILE_TO_EXTRACT.img directly..."
+    if ! 7z e -so rom.zip "$FILE_TO_EXTRACT.img" | zip -9 "$OUTPUT_ZIP" - >/dev/null; then
+        echo "ERROR: Failed to extract and compress $FILE_TO_EXTRACT.img" >&2
+        rm -f rom.zip
         exit 1
     fi
-    zip -9 "./output/${FILE_TO_EXTRACT}.zip" "./output/${FILE_TO_EXTRACT}.img"
-    rm -f "./output/${FILE_TO_EXTRACT}.img" payload.bin
+
+elif echo "$ROM_CONTENTS" | grep -q "payload.bin"; then
+    echo "[INFO] Extracting from payload.bin..."
+    mkdir -p extracted
+    7z e -y rom.zip -oextracted payload.bin
+    
+    python3 /tools/payload_dumper.py --out ./output --images "$FILE_TO_EXTRACT" extracted/payload.bin
+    
+    if [ ! -f "$OUTPUT_IMG" ]; then
+        echo "ERROR: Could not find or extract '$FILE_TO_EXTRACT' from payload.bin." >&2
+        rm -f rom.zip
+        exit 1
+    fi
+
+    if ! zip -9 "$OUTPUT_ZIP" "$OUTPUT_IMG" >/dev/null; then
+        echo "ERROR: Failed to compress the image." >&2
+        rm -f rom.zip "$OUTPUT_IMG"
+        exit 1
+    fi
+    rm -f "$OUTPUT_IMG"
 else
-    echo "ERROR: Required files not found in ROM" >&2
+    echo "ERROR: Neither '$FILE_TO_EXTRACT.img' nor 'payload.bin' were found in the archive." >&2
+    rm -f rom.zip
     exit 1
 fi
 
-rm -f rom_tail.zip
-echo "[DONE] Extracted and compressed: ./output/${FILE_TO_EXTRACT}.zip"
+rm -f rom.zip
+echo "[DONE] Extracted and compressed: $OUTPUT_ZIP"
+
+exit 0
