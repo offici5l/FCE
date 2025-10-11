@@ -14,6 +14,7 @@ No need to download the entire ROM just to get a single file. An innovative tech
 
 ### ✅ Currently supported  
 - boot.img
+- init_boot.img
 
 ### ⚠️ Limitations  
 The tool runs on a free server with limited resources. That means:  
