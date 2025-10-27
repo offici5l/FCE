@@ -1,4 +1,4 @@
-# Firmware Extractor
+# Firmware Content Extractor
 
 [fce-app.onrender.com](https://fce-app.onrender.com)
 
