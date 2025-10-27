@@ -1,10 +1,10 @@
-# Firmware Content Extractor
+## Firmware Content Extractor
 
 [fce-app.onrender.com](https://fce-app.onrender.com)
 
 ---
 
-## Extract exactly what you need, with ease and efficiency.
+### Extract exactly what you need, with ease and efficiency.
 
 ### What it does  
 Firmware Extractor lets you pull any file from any ROM `.zip` package and delivers it instantly as a direct download link.
