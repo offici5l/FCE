@@ -1,6 +1,6 @@
 ## Firmware Content Extractor
 
-[fce-app.onrender.com](https://fce-app.onrender.com)
+[fce-tool.pages.dev](https://fce-tool.pages.dev)
 
 ---
 
