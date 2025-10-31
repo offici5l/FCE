@@ -17,6 +17,6 @@ No need to download the entire ROM just to get a single file. An innovative tech
 - init_boot.img
 
 ### ⚠️ Limitations  
-The tool runs on a free server with limited resources. That means:  
-- Only one extraction at a time.  
-- Please wait for the current process to finish before starting a new one.
+Service hosted on a free server with limited resources. That means:
+- Processing time varies based on concurrent users (5 seconds minimum)
+- Fewer simultaneous users = faster extraction times
