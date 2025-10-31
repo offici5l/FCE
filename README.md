@@ -11,12 +11,3 @@ Firmware Extractor lets you pull any file from any ROM `.zip` package and delive
 
 ### Why it’s different  
 No need to download the entire ROM just to get a single file. An innovative technology extracts the requested file directly — even the server itself doesn’t download the full ROM. You get the file you want faster and more efficiently.
-
-### ✅ Currently supported  
-- boot.img
-- init_boot.img
-
-### ⚠️ Limitations  
-Service hosted on a free server with limited resources. That means:
-- Processing time varies based on concurrent users (5 seconds minimum)
-- Fewer simultaneous users = faster extraction times
